@@ -1,6 +1,7 @@
 #!/bin/python
 #carfile patcher wxpython gui
 #by cobranail#gmail.com
+#ver 0.7
 import wx
 import sys
 import os
@@ -48,6 +49,11 @@ def funcLoadSA(self):
 	    istcslicedata_sorted =  sorted(istcslicedata, key=lambda tup: tup[5])
 	    ext = len(istcslicedata_sorted)
 	    print 'istc count: ' + str(ext)
+	    #clear old rows
+	    r = main_frm.m_grid2.GetNumberRows()
+	    if r>0:
+	    	main_frm.m_grid2.DeleteRows(numRows = r)
+	    #add new rows
 	    main_frm.m_grid2.AppendRows(numRows = ext)
 	    for i in range(ext):
 	    	fn = patcherlib.getistcname(istcslicedata_sorted[i][4])
@@ -185,11 +191,22 @@ def loadlist(self):
 	pass
 	print str(len(text)) + ' lines loaded'
 
+
+
 app = wx.App() 
 main_frm = noname.CPGuiFrame1(None)
 
 main_frm.m_grid2.SetColSize(0, 500)
 main_frm.m_grid2.SetColSize(3, 500)
+#clear old rows
+r = main_frm.m_grid2.GetNumberRows()
+main_frm.m_grid2.DeleteRows(numRows = r)
+#set col labels
+main_frm.m_grid2.SetColLabelValue(0, 'carfile istc') 
+main_frm.m_grid2.SetColLabelValue(1, 'offset addr')
+main_frm.m_grid2.SetColLabelValue(2, 'w h')
+main_frm.m_grid2.SetColLabelValue(3, 'patch')
+main_frm.m_grid2.SetColLabelValue(4, 'patch wh')
 
 main_frm.buttonLoadSA.Bind( wx.EVT_BUTTON, funcLoadSA )
 main_frm.buttonLoadPatch.Bind( wx.EVT_BUTTON, funcLoadPatch )
