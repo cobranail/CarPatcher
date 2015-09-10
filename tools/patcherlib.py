@@ -5,7 +5,7 @@ import os
 import sys
 import struct
 
-lib_version = 0.7
+lib_version = 0.8
 
 def positions(target, source):
 	'''Produce all positions of target in source'''
@@ -78,40 +78,49 @@ def getistcname(istcdata):
 	sname = chkname.strip('\x00')
 	return sname
 def getistcsize(istcdata):
-	w = char4tovaluelitt(istcdata[12:16])
-	h = char4tovaluelitt(istcdata[16:20])
+	w=0
+	h=0
+	if istcdata[0:4]=='ISTC':
+		w = char4tovaluelitt(istcdata[12:16])
+		h = char4tovaluelitt(istcdata[16:20])
 	return (w,h)
 	pass
 
 def cookpatchdata(origdata,patchdata):
 	'''copy image slices info '''
 	'''only modify name , now'''
-	#origdata
-	block0 = origdata[0:40]
-	block1 = origdata[40:168] #name
-	block2 = origdata[168:184] # info
-	val1 = char4tovaluelitt(block2[0:4])
-	block3 = origdata[184: 184+val1] #E903
-	val1_1 = char4tovaluebig(block3[4:8])
-	block3_1 = block3[0:8+val1_1] #E903~EB03
-	block3_2 = block3[8+val1_1:val1] #EB03~MLEC
-	val2 = char4tovaluelitt(block2[12:16])
-	block4 = origdata[184+val1 : 184+val1+val2] #MLEC
+	'''if data is color data, just copy'''
+	newpatch = ''
+	if len(origdata)>132:
+		#origdata
+		block0 = origdata[0:40]
+		block1 = origdata[40:168] #name
+		block2 = origdata[168:184] # info
+		val1 = char4tovaluelitt(block2[0:4])
+		block3 = origdata[184: 184+val1] #E903
+		val1_1 = char4tovaluebig(block3[4:8])
+		block3_1 = block3[0:8+val1_1] #E903~EB03
+		block3_2 = block3[8+val1_1:val1] #EB03~MLEC
+		val2 = char4tovaluelitt(block2[12:16])
+		block4 = origdata[184+val1 : 184+val1+val2] #MLEC
 
-	#patchdata
-	pblock0 = patchdata[0:40]
-	newname = getistcname(origdata)+'_mod'
-	pblock1 = newname+patchdata[40+len(newname):168]
-	#pblock1 = patchdata[40:168] #name
-	pblock2 = patchdata[168:184] # info
-	val1 = char4tovaluelitt(pblock2[0:4])
-	pblock3 = patchdata[184: 184+val1] #E903
-	val2 = char4tovaluelitt(pblock2[12:16])
-	pblock4 = patchdata[184+val1 : 184+val1+val2] #MLEC
+		#patchdata
+		pblock0 = patchdata[0:40]
+		newname = getistcname(origdata)+'_mod'
+		pblock1 = newname+patchdata[40+len(newname):168]
+		#pblock1 = patchdata[40:168] #name
+		pblock2 = patchdata[168:184] # info
+		val1 = char4tovaluelitt(pblock2[0:4])
+		pblock3 = patchdata[184: 184+val1] #E903
+		val2 = char4tovaluelitt(pblock2[12:16])
+		pblock4 = patchdata[184+val1 : 184+val1+val2] #MLEC
 
-	#modify patch
-	newpatch = pblock0 + pblock1 + block2[0:12]+pblock2[12:16] + block3 + pblock4
-	newpatch = pblock0 + block1 + pblock2 + pblock3 + pblock4
+		#modify patch
+		newpatch = pblock0 + pblock1 + block2[0:12]+pblock2[12:16] + block3 + pblock4
+		newpatch = pblock0 + block1 + pblock2 + pblock3 + pblock4
+	else:
+		#color name/data
+		newpatch = patchdata
 	return newpatch
 	pass
 
@@ -124,7 +133,7 @@ def buildslices(uidata):
 	slice1_len = slice2_sp
 	slice2_len = char4tovaluebig(uidata[20:24]) # datachunk2 length
 
-	slice3sub_sp = char4tovaluebig(uidata[24:28]) 
+	slice3sub_sp = char4tovaluebig(uidata[24:28])
 	slice3sub_len = char4tovaluebig(uidata[28:32]) # sub datachunk len
 
 	datachunk1 = uidata[slice1_sp : slice1_sp+slice1_len] #datachunk 1
@@ -139,17 +148,22 @@ def buildslices(uidata):
 	return [[slice1_sp, slice1_len], [slice2_sp, slice2_len], [slice3sub_sp, slice3sub_len], [tag_data_sp, 4+tag_data_count*8]]
 
 def compareistcdim(patch1, patch2):
-	patch1w = char4tovaluebig(patch1[12:16])
-	patch1h = char4tovaluebig(patch1[16:20])
-	patch2w = char4tovaluebig(patch2[12:16])
-	patch2h = char4tovaluebig(patch2[16:20])
-	if patch1w != patch2w or patch1h != patch2h:
-		return False
+	if len(patch1)>132 and len(patch2)>132:
+		patch1w = char4tovaluebig(patch1[12:16])
+		patch1h = char4tovaluebig(patch1[16:20])
+		patch2w = char4tovaluebig(patch2[12:16])
+		patch2h = char4tovaluebig(patch2[16:20])
+		if patch1w != patch2w or patch1h != patch2h:
+			return False
+			pass
 		pass
-	pass
-	return True
-
-
+		return True
+	else:
+		#color data
+		if len(patch1) == len(patch2):
+			return True
+			pass
+		return False
 def sliceuidata(uidata):
 	#---------slice resource---------
 
@@ -161,7 +175,7 @@ def sliceuidata(uidata):
 	slice1_len = slice2_sp
 	slice2_len = char4tovaluebig(uidata[20:24]) # datachunk2 length
 
-	slice3sub_sp = char4tovaluebig(uidata[24:28]) 
+	slice3sub_sp = char4tovaluebig(uidata[24:28])
 	slice3sub_len = char4tovaluebig(uidata[28:32]) # sub datachunk len
 
 	datachunk1 = uidata[slice1_sp : slice1_sp+slice1_len] #datachunk 1
@@ -195,7 +209,7 @@ def sliceuidata(uidata):
 
 
 	gpc = gp1nz+gp2nz+[[-2, slice3sub_sp, slice3sub_len]]  #non-zero index group
-	
+
 	idx = 0
 
 	dataslices = []
@@ -239,7 +253,7 @@ def rebuilddata(uidata, dataslices, injectiondata):
 	slice1_len = slice2_sp
 	slice2_len = char4tovaluebig(uidata[20:24]) # datachunk2 length
 
-	slice3sub_sp = char4tovaluebig(uidata[24:28]) 
+	slice3sub_sp = char4tovaluebig(uidata[24:28])
 	slice3sub_len = char4tovaluebig(uidata[28:32]) # sub datachunk len
 
 	datachunk1 = uidata[slice1_sp : slice1_sp+slice1_len] #datachunk 1
@@ -314,7 +328,7 @@ def rebuilddata(uidata, dataslices, injectiondata):
 		sum2 = sum2 + len(item[1])
 		newpatch = item[1]
 		newpatch = cookpatchdata(dataslices[tidx][4], item[1]) # only replace name
-		if compareistcdim(dataslices[tidx][4], item[1]):	
+		if compareistcdim(dataslices[tidx][4], item[1]):
 			pass
 		else:
 			print '->warning, dim not same->, patch all'
@@ -341,6 +355,7 @@ def rebuilddata(uidata, dataslices, injectiondata):
 		vlen = vlen + ilen
 		if ditem[1]>=512:
 			if ditem[1]!=ioffset:
+				#print 'ioffset :'+str(ioffset)+', ditem :'+str(ditem[1])
 				differcount = differcount+1
 			offset_tls.append([[ditem[1],ditem[2]],[ioffset,ilen]]) # [[orig_offset, orig_len], [new_offset, new_len]]
 			ditem[1] = ioffset
@@ -348,7 +363,7 @@ def rebuilddata(uidata, dataslices, injectiondata):
 			newdatachunk1 = newdatachunk1+ditem[4]
 		else:
 			print 'before offset 512, ignore it '+str(ditem[1])
-	 	pass 
+	 	pass
 	print 'differcount : '+str(differcount)
 	print 'vlen : '+str(vlen)
 
@@ -409,19 +424,29 @@ def rebuilddata(uidata, dataslices, injectiondata):
 	for idxitem in gp1:
 		section2index = section2index + inttochars(idxitem[1]) + inttochars(idxitem[2])
 		pass
-	print len(section2index)
+	print 'section2index length : ' + str(len(section2index))
 	section2index = section2index + tag_data[0:4]
 
-	print len(gp2)
+	print 'gp2 length:' + str(len(gp2))
 	for idxitem in gp2:
 		section2index = section2index + inttochars(idxitem[1]) + inttochars(idxitem[2])
 		pass
 
 	section2index = section2index + '\x00'*16
 
-	print len(section2index)
+	print 'section2index length: '+ str(len(section2index))
 
-	newdatachunk1 = newdatachunk1[0:16]+inttochars(newdatachunk1_len)+newdatachunk1[20:newdatachunk1_len]
+	#workaround: different car format between 10.10 and 10.11
+	infolabeloffset = slice3sub_sp
+	infolabellength = slice3sub_len
+	if slice3sub_sp+slice3sub_len == slice1_len:
+		#osx10.11, info label in the rear of slice1
+		print 'osx10.11 car'
+		newdatachunk1 = newdatachunk1[0:16]+inttochars(newdatachunk1_len)+newdatachunk1[20:24]+inttochars(newdatachunk1_len-infolabellength)+newdatachunk1[28:newdatachunk1_len]
+	else:
+		print 'assume osx10.10 car'
+		newdatachunk1 = newdatachunk1[0:16]+inttochars(newdatachunk1_len)+newdatachunk1[20:newdatachunk1_len]
+
 
 	newuidata = newdatachunk1+section2index
 
@@ -457,6 +482,23 @@ def filteristc(dataslices):
 			istclist.append(item)
 			pass
 		pass
+	#search color data
+	color_name = ''
+	for item in dataslices:
+		#color name
+		if len(item[4])==132:
+			for x in item[4]:
+				if x>'\x00':
+					color_name = color_name+x
+			item[5]='_'+color_name+'____~'+str(item[1])
+			istclist.append(item)
+		#color rgb
+		elif len(item[4])==12:
+			if color_name!='':
+				item[5]='_'+color_name+'_rgb~'+str(item[1])
+				print item[5]
+				istclist.append(item)
+			color_name = ''
 	return istclist
 
 def loadpatch(patchfilelist):

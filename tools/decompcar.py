@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*- 
+# -*- coding: utf-8 -*-
 #osx yosemite carfile decompressor
 #by cobranail#gmail.com
 
@@ -91,6 +91,7 @@ for item in gp:
 	if char4 == 'ISTC':
 		outdata = uidata[offset:offset+length]
 		chkname = str(outdata[40:40+128])
+		print chkname
 		sname = ''
 		for x in chkname:
 			if x>'\x00':
