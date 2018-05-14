@@ -34,7 +34,7 @@ def funcLoadSA(self):
 		message="Choose a file",
 		defaultDir=os.getcwd(),
 		defaultFile="",
-		style=wx.OPEN | wx.CHANGE_DIR
+		style=wx.FD_OPEN | wx.FD_CHANGE_DIR
 		)
 
 	# Show the dialog and retrieve the user response. If it is the OK response,
@@ -95,7 +95,7 @@ def funcLoadPatch(self):
 		message="Choose a file",
 		defaultDir=os.getcwd(),
 		defaultFile="",
-		style=wx.OPEN | wx.MULTIPLE | wx.CHANGE_DIR
+		style=wx.FD_OPEN | wx.FD_MULTIPLE | wx.FD_CHANGE_DIR
 		)
 
 	# Show the dialog and retrieve the user response. If it is the OK response,
@@ -202,7 +202,7 @@ def loadlist(self):
 		message="Choose a list file",
 		defaultDir=os.getcwd(),
 		defaultFile="listsv.txt",
-		style=wx.OPEN | wx.CHANGE_DIR
+		style=wx.FD_OPEN | wx.FD_CHANGE_DIR
 		)
 
 	# Show the dialog and retrieve the user response. If it is the OK response,

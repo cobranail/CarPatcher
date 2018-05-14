@@ -5,7 +5,11 @@ import os
 import sys
 import struct
 
-lib_version = 0.8
+import datetime
+
+lib_version = 0.9
+
+osxversion = '10.13'
 
 def positions(target, source):
 	'''Produce all positions of target in source'''
@@ -80,7 +84,7 @@ def getistcname(istcdata):
 def getistcsize(istcdata):
 	w=0
 	h=0
-	if istcdata[0:4]=='ISTC':
+	if istcdata[0:4]=='ISTC' or istcdata[0:4]=='ISKP' :
 		w = char4tovaluelitt(istcdata[12:16])
 		h = char4tovaluelitt(istcdata[16:20])
 	return (w,h)
@@ -439,9 +443,9 @@ def rebuilddata(uidata, dataslices, injectiondata):
 	#workaround: different car format between 10.10 and 10.11
 	infolabeloffset = slice3sub_sp
 	infolabellength = slice3sub_len
-	if slice3sub_sp+slice3sub_len == slice1_len:
+	if osxversion in ['10.13', '10.12', '10.11']:
 		#osx10.11, info label in the rear of slice1
-		print 'osx10.11 car'
+		print 'osx10.11, 10.12, 10.13 car'
 		newdatachunk1 = newdatachunk1[0:16]+inttochars(newdatachunk1_len)+newdatachunk1[20:24]+inttochars(newdatachunk1_len-infolabellength)+newdatachunk1[28:newdatachunk1_len]
 	else:
 		print 'assume osx10.10 car'
@@ -453,7 +457,10 @@ def rebuilddata(uidata, dataslices, injectiondata):
 	print 'check new uidata continuious'
 	slicedata(newuidata)
 
-	f = open('new.car', 'wb')
+	fnpostfix = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+	fn = 'new'+fnpostfix+'.car'
+
+	f = open(fn, 'wb')
 	f.write(newuidata)
 	f.close()
 
