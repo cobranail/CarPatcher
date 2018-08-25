@@ -1,3 +1,4 @@
+# encoding:utf-8
 #osx carfile patcher function library
 #by cobranail#gmail.com
 
@@ -9,7 +10,7 @@ import datetime
 
 lib_version = 0.9
 
-osxversion = '10.13'
+osxversion = '10.14'
 
 def positions(target, source):
 	'''Produce all positions of target in source'''
@@ -128,6 +129,18 @@ def cookpatchdata(origdata,patchdata):
 	return newpatch
 	pass
 
+def align_len_mod16(value):
+	return value + ((16 - (value % 16))%16)
+
+def align_to_16bytes(patch):
+	# for osx 10.14 and higher
+	plen = len(patch)
+	newpatch = patch
+	if (plen%16) !=0:
+		zerofill_bytes_len = (16 - (plen % 16))%16
+		newpatch = patch+b'\x00'*zerofill_bytes_len
+	return newpatch
+
 
 def buildslices(uidata):
 
@@ -220,19 +233,34 @@ def sliceuidata(uidata):
 	for idxgp in gpc:
 		ioffset = idxgp[1]
 		ilen = idxgp[2]
-		dataslices.append([idx, ioffset, ilen , False ,uidata[ioffset:ioffset+ilen], ''])
+		# dataslices.append([idx, ioffset, ilen , False ,uidata[ioffset:ioffset+ilen], ''])
+		# fill_btyes = ''
+		# zerofill_bytes_len = 0
+		# if osxversion in ['10.14']:
+		# 	#since 10.14, maybe 10.3.4, there is no extra fill bytes info in index section, just fill zeroes to align 16 bytes
+		# 	zerofill_bytes_len = (16 - (ilen % 16))%16
+		# 	fill_btyes = b'\x00'*zerofill_bytes_len
+		dataslices.append([idx, ioffset, ilen , False ,uidata[ioffset:ioffset+ilen], '']) ## notice: ilen != len(data), len(data) contains zerofills
 		idx = idx+1
-		pass
 
 	#check if discontinue
 	dataslices_sorted =  sorted(dataslices, key=lambda tup: tup[1])
 	chkoffset = 0
 	for x in range(0,len(dataslices_sorted)-1):
-		chkoffset = dataslices_sorted[x][1]+dataslices_sorted[x][2]
+		
+		zerofill_bytes_len = 0
+		if osxversion in ['10.14']:
+			#since 10.14, maybe 10.3.4, there is no extra fill bytes info in index section, just fill zeroes to align 16 bytes
+			zerofill_bytes_len = (16 - (dataslices_sorted[x][2] % 16))%16
+			#print 'zfill len:', zerofill_bytes_len
+
+		#chkoffset = dataslices_sorted[x][1]+dataslices_sorted[x][2]
+
+		chkoffset = dataslices_sorted[x][1] + len(dataslices_sorted[x][4]) + zerofill_bytes_len
+
 		if dataslices_sorted[x+1][1] != chkoffset:
-			print 'discontinue t1 at index '+str(x)+', '+ str(dataslices_sorted[x][1])+'+'+str(dataslices_sorted[x][2]) + ' ~ '+str(dataslices_sorted[x+1][1])
-			pass
-		chkoffset = dataslices_sorted[x][1]+dataslices_sorted[x][2]
+			print 'discontinue t1 at index '+str(x)+', '+ str(dataslices_sorted[x][1])+'+'+str(len(dataslices_sorted[x][4])) + ' ~ '+str(dataslices_sorted[x+1][1])
+		chkoffset = dataslices_sorted[x][1] + len(dataslices_sorted[x][4]) + zerofill_bytes_len
 		pass
 
 	print '-----------------------'
@@ -298,7 +326,13 @@ def rebuilddata(uidata, dataslices, injectiondata):
 	for idxgp in gpc:
 		ioffset = idxgp[1]
 		ilen = idxgp[2]
-		dataslices.append([idx, ioffset, ilen , False ,uidata[ioffset:ioffset+ilen]])
+		fill_btyes = ''
+		zerofill_bytes_len = 0
+		# if osxversion in ['10.14']:
+		# 	zerofill_bytes_len = (16 - (ilen % 16))%16
+		# 	fill_btyes = b'\x00'*zerofill_bytes_len
+
+		dataslices.append([idx, ioffset, ilen , False ,uidata[ioffset:ioffset+ilen] ]) 
 		idx = idx+1
 		pass
 
@@ -306,16 +340,23 @@ def rebuilddata(uidata, dataslices, injectiondata):
 	dataslices_sorted =  sorted(dataslices, key=lambda tup: tup[1])
 	chkoffset = 0
 	for x in range(0,len(dataslices_sorted)-1):
-		chkoffset = dataslices_sorted[x][1]+dataslices_sorted[x][2]
+
+		zerofill_bytes_len = 0
+		if osxversion in ['10.14']:
+			#since 10.14, maybe 10.3.4, there is no extra fill bytes info in index section, just fill zeroes to align 16 bytes
+			zerofill_bytes_len = (16 - (dataslices_sorted[x][2] % 16))%16
+			#print 'zfill len:', zerofill_bytes_len
+		chkoffset = dataslices_sorted[x][1]+len(dataslices_sorted[x][4]) + zerofill_bytes_len
+
 		if dataslices_sorted[x+1][1] != chkoffset:
-			print 'discontinue t2 at index '+str(x)+', '+ str(dataslices_sorted[x][1])+'+'+str(dataslices_sorted[x][2]) + ' ~ '+str(dataslices_sorted[x+1][1])
+			print 'discontinue t2 at index '+str(x)+', '+ str(dataslices_sorted[x][1])+'+'+str(len(dataslices_sorted[x][4])) + ' ~ '+str(dataslices_sorted[x+1][1])
 			pass
-		chkoffset = dataslices_sorted[x][1]+dataslices_sorted[x][2]
+		chkoffset = dataslices_sorted[x][1]+len(dataslices_sorted[x][4]) + zerofill_bytes_len
 		pass
 
 	print '-----------------------'
 	for x in xrange(0,0):
-		print str(dataslices_sorted[x][1]) + '  ' + str(dataslices_sorted[x][2])
+		print str(dataslices_sorted[x][1]) + '  ' + str(dataslices_sorted[x][2]) + '  ' + str(len(dataslices_sorted[x][4])) 
 		pass
 	print '-----------------------'
 
@@ -364,7 +405,10 @@ def rebuilddata(uidata, dataslices, injectiondata):
 			offset_tls.append([[ditem[1],ditem[2]],[ioffset,ilen]]) # [[orig_offset, orig_len], [new_offset, new_len]]
 			ditem[1] = ioffset
 			ditem[2] = ilen
-			newdatachunk1 = newdatachunk1+ditem[4]
+			if osxversion in ['10.14']:
+				newdatachunk1 = newdatachunk1+ align_to_16bytes(ditem[4])
+			else:
+				newdatachunk1 = newdatachunk1 + ditem[4]
 		else:
 			print 'before offset 512, ignore it '+str(ditem[1])
 	 	pass
@@ -419,9 +463,6 @@ def rebuilddata(uidata, dataslices, injectiondata):
 			pass
 		pass
 
-
-
-
 	section2header = datachunk2[0:4]
 	section2index = section2header
 
@@ -443,9 +484,14 @@ def rebuilddata(uidata, dataslices, injectiondata):
 	#workaround: different car format between 10.10 and 10.11
 	infolabeloffset = slice3sub_sp
 	infolabellength = slice3sub_len
-	if osxversion in ['10.13', '10.12', '10.11']:
+	if osxversion in ['10.14','10.13', '10.12', '10.11']:
+		
+
 		#osx10.11, info label in the rear of slice1
-		print 'osx10.11, 10.12, 10.13 car'
+		if osxversion in ['10.14']:
+			#10.14 info len is aligned to 16 bytes
+			infolabellength = align_len_mod16(slice3sub_len)
+		print 'osx10.11, 10.12, 10.13, 10.14 car'
 		newdatachunk1 = newdatachunk1[0:16]+inttochars(newdatachunk1_len)+newdatachunk1[20:24]+inttochars(newdatachunk1_len-infolabellength)+newdatachunk1[28:newdatachunk1_len]
 	else:
 		print 'assume osx10.10 car'

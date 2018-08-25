@@ -100,6 +100,7 @@ if not os.path.exists(rsdir):
 print 'index group len:'+str(len(gp))
 #print gp
 color_name = ''
+'''
 for item in gp:
 	offset = item[1]
 	length = item[2]
@@ -145,3 +146,57 @@ for item in gp:
 			#ofile.close()
 			color_name = ''
 		pass
+'''
+dataslices = patcherlib.sliceuidata(uidata)
+
+for item in dataslices:
+	if len(item)>4:
+		char4 = item[4][0:4]
+		length = len(item[4])
+		offset = item[1]
+		datastr = item[4]
+		if char4 == 'ISTC':
+			outdata = item[4]
+			chkname = str(outdata[40:40+128])
+			sname = ''
+			for x in chkname:
+				if x>'\x00':
+					if ord(x)<32 or ord(x)>126 :
+						x = '_'
+					sname = sname+x
+			ofn = rsdir+'/'+sname+'~'+str(offset)
+			ofile = open(ofn, 'wb')
+			ofile.write(outdata)
+			ofile.close()
+			color_name = ''
+		elif length == 132:
+			sname = ''
+			for x in datastr:
+				if x>'\x00':
+					if ord(x)<32 or ord(x)>126 :
+						x = '_'
+					sname = sname+x
+			ofn = rsdir+'/'+'_'+sname+'_'
+			ofile = open(ofn, 'wb')
+			ofile.write(datastr)
+			ofile.close()
+			color_name = sname
+		elif length == 12:
+			ofn = ''
+			if color_name!='':
+				ofn = rsdir+'/'+'_'+color_name+'_rgb'
+			else:
+				ofn = rsdir+'/'+str(offset)+'_'+str(length)
+			ofile = open(ofn, 'wb')
+			ofile.write(datastr)
+			ofile.close()
+			color_name = ''
+		else:
+			ofn = rsdir+'/'+str(offset)+'_'+str(length)
+			#ofile = open(ofn, 'wb')
+			#ofile.write(datastr)
+			#ofile.close()
+			color_name = ''	
+
+
+
